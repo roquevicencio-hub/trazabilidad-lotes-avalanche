@@ -1,0 +1,49 @@
+{
+  "_format": "hh3-sol-build-info-1",
+  "id": "solc-0_8_34-7ae9abddee6550936133093f8745c34f00d7ad66",
+  "solcVersion": "0.8.34",
+  "solcLongVersion": "0.8.34+commit.80d5c536",
+  "compilerType": "solc",
+  "toolVersions": {
+    "hardhat": "3.22.0"
+  },
+  "userSourceNameMap": {
+    "contracts/TrazabilidadLotes.sol": "project/contracts/TrazabilidadLotes.sol"
+  },
+  "input": {
+    "language": "Solidity",
+    "settings": {
+      "evmVersion": "cancun",
+      "optimizer": {
+        "enabled": true,
+        "runs": 200
+      },
+      "outputSelection": {
+        "*": {
+          "": [
+            "ast"
+          ],
+          "*": [
+            "abi",
+            "evm.bytecode.linkReferences",
+            "evm.bytecode.object",
+            "evm.bytecode.opcodes",
+            "evm.bytecode.sourceMap",
+            "evm.deployedBytecode.immutableReferences",
+            "evm.deployedBytecode.linkReferences",
+            "evm.deployedBytecode.object",
+            "evm.deployedBytecode.opcodes",
+            "evm.deployedBytecode.sourceMap",
+            "evm.methodIdentifiers"
+          ]
+        }
+      },
+      "remappings": []
+    },
+    "sources": {
+      "project/contracts/TrazabilidadLotes.sol": {
+        "content": "// SPDX-License-Identifier: MIT\npragma solidity ^0.8.28;\n\n/// @title Trazabilidad de lotes en una cadena de suministro\n/// @notice Registra etapas, traspasos de custodia e incidencias de un lote.\n///         Solo el custodio actual puede modificar el lote. El historial no se puede borrar.\ncontract TrazabilidadLotes {\n    enum TipoEvento { Creacion, Etapa, Traspaso, Incidencia, Cierre }\n\n    struct Lote {\n        uint256 id;\n        string producto;\n        string origen;\n        address creador;\n        address custodio;\n        bool cerrado;\n        uint64 creadoEn;\n    }\n\n    struct Evento {\n        TipoEvento tipo;\n        address autor;\n        address destinatario; // solo se usa en traspasos\n        string ubicacion;\n        string detalle;\n        bytes32 evidencia;    // huella (hash) de un documento o foto, opcional\n        uint64 fecha;\n    }\n\n    uint256 public totalLotes;\n    mapping(uint256 => Lote) private lotes;\n    mapping(uint256 => Evento[]) private historial;\n\n    event LoteCreado(uint256 indexed loteId, address indexed creador, string producto);\n    event EtapaRegistrada(uint256 indexed loteId, address indexed autor, string ubicacion);\n    event CustodiaTraspasada(uint256 indexed loteId, address indexed desde, address indexed hacia);\n    event IncidenciaReportada(uint256 indexed loteId, address indexed autor, string detalle);\n    event LoteCerrado(uint256 indexed loteId, address indexed autor);\n\n    error LoteInexistente();\n    error NoEsCustodio();\n    error LoteYaCerrado();\n    error CustodioInvalido();\n    error TextoVacio();\n\n    modifier existe(uint256 loteId) {\n        if (loteId == 0 || loteId > totalLotes) revert LoteInexistente();\n        _;\n    }\n\n    modifier soloCustodio(uint256 loteId) {\n        if (lotes[loteId].custodio != msg.sender) revert NoEsCustodio();\n        _;\n    }\n\n    modifier abierto(uint256 loteId) {\n        if (lotes[loteId].cerrado) revert LoteYaCerrado();\n        _;\n    }\n\n    /// @notice Crea un lote. Quien lo crea es su primer custodio.\n    function crearLote(string calldata producto, string calldata origen) external returns (uint256 loteId) {\n        if (bytes(producto).length == 0) revert TextoVacio();\n\n        loteId = ++totalLotes;\n        lotes[loteId] = Lote({\n            id: loteId,\n            producto: producto,\n            origen: origen,\n            creador: msg.sender,\n            custodio: msg.sender,\n            cerrado: false,\n            creadoEn: uint64(block.timestamp)\n        });\n\n        _agregarEvento(loteId, TipoEvento.Creacion, address(0), origen, \"Lote creado\", bytes32(0));\n        emit LoteCreado(loteId, msg.sender, producto);\n    }\n\n    /// @notice El custodio actual registra una etapa (ej: empaque, transporte, aduana).\n    function registrarEtapa(\n        uint256 loteId,\n        string calldata ubicacion,\n        string calldata detalle,\n        bytes32 evidencia\n    ) external existe(loteId) abierto(loteId) soloCustodio(loteId) {\n        if (bytes(detalle).length == 0) revert TextoVacio();\n        _agregarEvento(loteId, TipoEvento.Etapa, address(0), ubicacion, detalle, evidencia);\n        emit EtapaRegistrada(loteId, msg.sender, ubicacion);\n    }\n\n    /// @notice El custodio actual entrega el lote a otra dirección, que pasa a ser el nuevo custodio.\n    function traspasarCustodia(\n        uint256 loteId,\n        address nuevoCustodio,\n        string calldata detalle\n    ) external existe(loteId) abierto(loteId) soloCustodio(loteId) {\n        if (nuevoCustodio == address(0) || nuevoCustodio == msg.sender) revert CustodioInvalido();\n\n        lotes[loteId].custodio = nuevoCustodio;\n        _agregarEvento(loteId, TipoEvento.Traspaso, nuevoCustodio, \"\", detalle, bytes32(0));\n        emit CustodiaTraspasada(loteId, msg.sender, nuevoCustodio);\n    }\n\n    /// @notice El custodio actual deja constancia de un problema (ej: se cortó la cadena de frío).\n    function reportarIncidencia(\n        uint256 loteId,\n        string calldata detalle,\n        bytes32 evidencia\n    ) external existe(loteId) abierto(loteId) soloCustodio(loteId) {\n        if (bytes(detalle).length == 0) revert TextoVacio();\n        _agregarEvento(loteId, TipoEvento.Incidencia, address(0), \"\", detalle, evidencia);\n        emit IncidenciaReportada(loteId, msg.sender, detalle);\n    }\n\n    /// @notice El custodio final cierra el lote. Después de esto no admite más cambios.\n    function cerrarLote(uint256 loteId, string calldata detalle)\n        external\n        existe(loteId)\n        abierto(loteId)\n        soloCustodio(loteId)\n    {\n        lotes[loteId].cerrado = true;\n        _agregarEvento(loteId, TipoEvento.Cierre, address(0), \"\", detalle, bytes32(0));\n        emit LoteCerrado(loteId, msg.sender);\n    }\n\n    // ---------- Consultas (gratis, no cuestan gas) ----------\n\n    function obtenerLote(uint256 loteId) external view existe(loteId) returns (Lote memory) {\n        return lotes[loteId];\n    }\n\n    function cantidadEventos(uint256 loteId) external view existe(loteId) returns (uint256) {\n        return historial[loteId].length;\n    }\n\n    function obtenerEvento(uint256 loteId, uint256 indice) external view existe(loteId) returns (Evento memory) {\n        return historial[loteId][indice];\n    }\n\n    // ---------- Interno ----------\n\n    function _agregarEvento(\n        uint256 loteId,\n        TipoEvento tipo,\n        address destinatario,\n        string memory ubicacion,\n        string memory detalle,\n        bytes32 evidencia\n    ) private {\n        historial[loteId].push(\n            Evento({\n                tipo: tipo,\n                autor: msg.sender,\n                destinatario: destinatario,\n                ubicacion: ubicacion,\n                detalle: detalle,\n                evidencia: evidencia,\n                fecha: uint64(block.timestamp)\n            })\n        );\n    }\n}\n"
+      }
+    }
+  }
+}
