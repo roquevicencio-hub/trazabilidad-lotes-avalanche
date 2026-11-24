@@ -29,7 +29,7 @@ inalterable, cada actor responde por lo que reportó mientras tuvo la custodia.
 | Ver en Snowtrace | https://testnet.snowtrace.io/address/0x08E6059F3e26A41ebDEc5C9e727EaeA0ca0FCD35 |
 | Tx: crear lote | https://testnet.snowtrace.io/tx/0x1db55bf164b9c000358e97224275160f07f191cab37a7003ad77746c7bdcb2ae |
 | Tx: registrar etapa | https://testnet.snowtrace.io/tx/0xcf81b88da860420a8affb7b7e6b1dc334a04f19bd387b7f68de221410afdc8f3 |
-| Demo en vivo | URL_DE_LA_DEMO |
+| Demo en vivo | https://trazabilidad-lotes-avalanche.vercel.app |
 
 ## Cómo funciona el contrato
 
