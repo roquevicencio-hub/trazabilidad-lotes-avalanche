@@ -103,50 +103,66 @@ export default function Page() {
 
   return (
     <main>
-      <h1>Trazabilidad de lotes</h1>
-      <p className="sub">
-        Cadena de custodia en blockchain · Avalanche Fuji (testnet) · contrato{" "}
-        <a href={addressUrl(CONTRACT_ADDRESS)} target="_blank" rel="noreferrer" className="mono">
-          {corto(CONTRACT_ADDRESS)}
-        </a>
-      </p>
+      <header className="app-header">
+        <div className="eyebrow">Avalanche Fuji Testnet · Cadena de Custodia</div>
+        <h1>Trazabilidad de lotes</h1>
+        <p className="sub">
+          Registro verificable en blockchain · Contrato{" "}
+          <a href={addressUrl(CONTRACT_ADDRESS)} target="_blank" rel="noreferrer" className="mono">
+            {corto(CONTRACT_ADDRESS)}
+          </a>
+        </p>
+      </header>
 
       {/* 1. Wallet */}
-      <div className="card">
-        <h2>1. Wallet</h2>
+      <section className="card">
+        <div className="card-header">
+          <h2>Conexión de wallet</h2>
+          <span className="step-tag">Paso 01</span>
+        </div>
         {!isConnected ? (
           <div className="row">
             <button disabled={conectando} onClick={() => connect({ connector: connectors[0] })}>
               Conectar wallet
             </button>
-            <span className="meta">Necesitas Core o MetaMask. Para leer el lote no hace falta conectarse.</span>
+            <span className="meta">Compatible con Core o MetaMask. Puedes consultar lotes sin conectar wallet.</span>
           </div>
         ) : (
           <div className="row">
-            <span className="pill">{corto(address)}</span>
+            <span className="pill mono">{corto(address)}</span>
             <button className="sec" onClick={() => disconnect()}>Desconectar</button>
           </div>
         )}
-      </div>
+      </section>
 
       {redIncorrecta && (
         <div className="banner">
-          Estás en una red equivocada. Esta demo funciona solo en Avalanche Fuji (Chain ID 43113).{" "}
-          <button disabled={cambiando} onClick={() => switchChain({ chainId: avalancheFuji.id })}>
-            Cambiar a Fuji
-          </button>
+          <div className="row" style={{ justifyContent: "space-between" }}>
+            <span>Estás en una red distinta. Esta demo opera en Avalanche Fuji (Chain ID 43113).</span>
+            <button disabled={cambiando} onClick={() => switchChain({ chainId: avalancheFuji.id })}>
+              Cambiar a Fuji
+            </button>
+          </div>
         </div>
       )}
 
       {/* 2. Consulta */}
-      <div className="card">
-        <h2>2. Consultar un lote</h2>
-        <div className="row" style={{ marginBottom: 12 }}>
-          <div style={{ width: 140 }}>
-            <label>N.º de lote</label>
-            <input value={loteIdTxt} onChange={(e) => setLoteIdTxt(e.target.value)} inputMode="numeric" />
+      <section className="card">
+        <div className="card-header">
+          <h2>Consultar un lote</h2>
+          <span className="step-tag">Paso 02 · Lectura</span>
+        </div>
+        <div className="row" style={{ marginBottom: 14 }}>
+          <div style={{ width: 150 }}>
+            <label htmlFor="lote-id-input">N.º de lote</label>
+            <input
+              id="lote-id-input"
+              value={loteIdTxt}
+              onChange={(e) => setLoteIdTxt(e.target.value)}
+              inputMode="numeric"
+            />
           </div>
-          <span className="meta">Lotes creados en total: {total.data?.toString() ?? "…"}</span>
+          <span className="meta">Lotes creados en total: <strong>{total.data?.toString() ?? "…"}</strong></span>
         </div>
 
         {!idValido && <p className="bad">Ingresa un número de lote válido (1 o más).</p>}
@@ -154,19 +170,34 @@ export default function Page() {
 
         {lote.data && (
           <>
-            <div className="kv">
-              <div>Producto</div><div>{lote.data.producto}</div>
-              <div>Origen</div><div>{lote.data.origen}</div>
-              <div>Creado por</div><div className="mono">{lote.data.creador}</div>
-              <div>Custodio actual</div>
-              <div className="mono">
-                {lote.data.custodio} {esCustodio && <span className="pill ok">eres tú</span>}
+            <div className="lote-summary">
+              <div className="lote-summary-top">
+                <div className="lote-title">
+                  Lote #{idValido ? loteIdTxt : ""} · {lote.data.producto}
+                </div>
+                {lote.data.cerrado ? (
+                  <span className="status-badge status-closed">Cerrado</span>
+                ) : (
+                  <span className="status-badge status-active">En tránsito</span>
+                )}
               </div>
-              <div>Estado</div>
-              <div>{lote.data.cerrado ? <span className="pill">Cerrado</span> : <span className="pill ok">En tránsito</span>}</div>
+
+              <div className="kv">
+                <div>Producto</div>
+                <div>{lote.data.producto}</div>
+                <div>Origen</div>
+                <div>{lote.data.origen}</div>
+                <div>Creado por</div>
+                <div className="mono">{lote.data.creador}</div>
+                <div>Custodio actual</div>
+                <div className="mono">
+                  {lote.data.custodio}
+                  {esCustodio && <span className="custodian-badge">Eres tú</span>}
+                </div>
+              </div>
             </div>
 
-            <h2 style={{ marginTop: 18 }}>Historial (no se puede borrar ni editar)</h2>
+            <h3 className="timeline-section-title">Historial inmutable de eventos</h3>
             <ul className="timeline">
               {eventos.data?.map((r, i) => {
                 if (r.status !== "success") return null;
@@ -191,78 +222,151 @@ export default function Page() {
             </ul>
           </>
         )}
-      </div>
+      </section>
 
       {/* 3. Crear lote */}
-      <div className="card">
-        <h2>3. Crear un lote nuevo</h2>
-        <div className="grid">
-          <div><label>Producto</label>
-            <input value={producto} onChange={(e) => setProducto(e.target.value)} placeholder="Cerezas de exportación" /></div>
-          <div><label>Origen</label>
-            <input value={origen} onChange={(e) => setOrigen(e.target.value)} placeholder="Huerto en Rancagua, Chile" /></div>
-          <div><button disabled={!puedeOperar || !producto} onClick={() => enviar("crearLote", [producto, origen])}>
-            Crear lote (queda a tu nombre)
-          </button></div>
+      <section className="card">
+        <div className="card-header">
+          <h2>Crear un lote nuevo</h2>
+          <span className="step-tag">Paso 03 · Alta</span>
         </div>
-      </div>
+        <div className="grid">
+          <div>
+            <label htmlFor="producto-input">Producto</label>
+            <input
+              id="producto-input"
+              value={producto}
+              onChange={(e) => setProducto(e.target.value)}
+              placeholder="Cerezas de exportación"
+            />
+          </div>
+          <div>
+            <label htmlFor="origen-input">Origen</label>
+            <input
+              id="origen-input"
+              value={origen}
+              onChange={(e) => setOrigen(e.target.value)}
+              placeholder="Huerto en Rancagua, Chile"
+            />
+          </div>
+          <div>
+            <button disabled={!puedeOperar || !producto} onClick={() => enviar("crearLote", [producto, origen])}>
+              Crear lote (queda a tu nombre)
+            </button>
+          </div>
+        </div>
+      </section>
 
       {/* 4. Operar */}
-      <div className="card">
-        <h2>4. Operar sobre el lote #{idValido ? loteIdTxt : "?"}</h2>
+      <section className="card">
+        <div className="card-header">
+          <h2>Operar sobre el lote #{idValido ? loteIdTxt : "?"}</h2>
+          <span className="step-tag">Paso 04 · Movimiento</span>
+        </div>
         {lote.data && !esCustodio && isConnected && (
           <p className="warn">Solo el custodio actual puede operar este lote. Cambia de cuenta en tu wallet.</p>
         )}
         <div className="grid">
-          <div><label>Acción</label>
-            <select value={accion} onChange={(e) => setAccion(e.target.value as Accion)}>
+          <div>
+            <label htmlFor="accion-select">Acción</label>
+            <select
+              id="accion-select"
+              value={accion}
+              onChange={(e) => setAccion(e.target.value as Accion)}
+            >
               <option value="etapa">Registrar una etapa</option>
               <option value="traspaso">Traspasar la custodia</option>
               <option value="incidencia">Reportar una incidencia</option>
               <option value="cierre">Cerrar el lote (entrega final)</option>
-            </select></div>
+            </select>
+          </div>
 
           {accion === "etapa" && (
-            <div><label>Lugar</label>
-              <input value={ubicacion} onChange={(e) => setUbicacion(e.target.value)} placeholder="Puerto de Valparaíso" /></div>
+            <div>
+              <label htmlFor="ubicacion-input">Lugar</label>
+              <input
+                id="ubicacion-input"
+                value={ubicacion}
+                onChange={(e) => setUbicacion(e.target.value)}
+                placeholder="Puerto de Valparaíso"
+              />
+            </div>
           )}
           {accion === "traspaso" && (
-            <div><label>Dirección del nuevo custodio (0x…)</label>
-              <input value={destino} onChange={(e) => setDestino(e.target.value)} placeholder="0x…" /></div>
+            <div>
+              <label htmlFor="destino-input">Dirección del nuevo custodio (0x…)</label>
+              <input
+                id="destino-input"
+                value={destino}
+                onChange={(e) => setDestino(e.target.value)}
+                placeholder="0x…"
+              />
+            </div>
           )}
-          <div><label>Detalle</label>
-            <input value={detalle} onChange={(e) => setDetalle(e.target.value)} placeholder="Qué pasó en esta etapa" /></div>
+          <div>
+            <label htmlFor="detalle-input">Detalle</label>
+            <input
+              id="detalle-input"
+              value={detalle}
+              onChange={(e) => setDetalle(e.target.value)}
+              placeholder="Qué pasó en esta etapa"
+            />
+          </div>
 
           {(accion === "etapa" || accion === "incidencia") && (
-            <div><label>Evidencia (opcional): se guarda solo la huella SHA-256 del archivo</label>
-              <input type="file" onChange={async (e) => {
-                const f = e.target.files?.[0];
-                setHuella(f ? await huellaDeArchivo(f) : zeroHash);
-              }} />
+            <div>
+              <label htmlFor="evidencia-input">Evidencia (opcional): se guarda solo la huella SHA-256 del archivo</label>
+              <input
+                id="evidencia-input"
+                type="file"
+                onChange={async (e) => {
+                  const f = e.target.files?.[0];
+                  setHuella(f ? await huellaDeArchivo(f) : zeroHash);
+                }}
+              />
               {huella !== zeroHash && <div className="meta mono">huella: {huella}</div>}
             </div>
           )}
 
-          <div><button disabled={!puedeOperar || !idValido || !detalle} onClick={ejecutarAccion}>Enviar transacción</button></div>
+          <div>
+            <button disabled={!puedeOperar || !idValido || !detalle} onClick={ejecutarAccion}>
+              Enviar transacción
+            </button>
+          </div>
         </div>
 
         {/* Estado de la transacción */}
-        {firmando && <p className="meta">Confirma la transacción en tu wallet…</p>}
-        {hash && recibo.isLoading && <p className="meta">Esperando confirmación en la red…</p>}
-        {hash && recibo.isSuccess && (
-          <p className="ok">
-            Transacción confirmada.{" "}
-            <a href={txUrl(hash)} target="_blank" rel="noreferrer">Ver en Snowtrace</a>
-            <br /><span className="mono meta">{hash}</span>
-          </p>
+        {firmando && (
+          <div className="tx-box">
+            <span className="meta">Confirma la transacción en tu wallet…</span>
+          </div>
         )}
-        {error && <p className="bad">No se pudo enviar: {"shortMessage" in error ? String(error.shortMessage) : error.message}</p>}
-      </div>
+        {hash && recibo.isLoading && (
+          <div className="tx-box">
+            <span className="meta">Esperando confirmación en la red…</span>
+          </div>
+        )}
+        {hash && recibo.isSuccess && (
+          <div className="tx-box">
+            <span className="ok">Transacción confirmada.</span>{" "}
+            <a href={txUrl(hash)} target="_blank" rel="noreferrer">Ver en Snowtrace</a>
+            <br />
+            <span className="mono meta">{hash}</span>
+          </div>
+        )}
+        {error && (
+          <div className="tx-box">
+            <span className="bad">
+              No se pudo enviar: {"shortMessage" in error ? String(error.shortMessage) : error.message}
+            </span>
+          </div>
+        )}
+      </section>
 
-      <p className="meta">
+      <footer className="footer-note">
         Nota: la blockchain garantiza que el registro no se altera, no que lo registrado sea verdad.
         Las wallets y fondos de esta demo son de prueba (testnet) y no tienen valor real.
-      </p>
+      </footer>
     </main>
   );
 }
